@@ -55,8 +55,8 @@
 
     .hand {
       position: absolute;
-      width: 30px;
-      height: 30px;
+      width: 200px;
+      height: 200px;
       background: url('hand.png') no-repeat center center;
       background-size: contain;
       pointer-events: none;
@@ -64,6 +64,7 @@
       opacity: 0;
       transition: opacity 0.1s;
     }
+
 
     #controls {
       margin-top: 20px;
@@ -156,8 +157,9 @@
 
       keyDiv.classList.add('pressed');
       const rect = keyDiv.getBoundingClientRect();
-      hand.style.left = rect.left + window.scrollX + 5 + 'px';
-      hand.style.top = rect.top + window.scrollY - 20 + 'px';
+      hand.style.left = rect.left + window.scrollX -105 + 'px';
+      hand.style.top = rect.top + window.scrollY  + 'px'; // roughly 200px tall, center above
+
       hand.style.opacity = 1;
 
       setTimeout(() => {
