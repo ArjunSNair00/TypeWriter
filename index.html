@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Goofy Typing Soundboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: monospace;
+      background-color: #1e1e1e;
+      color: #ffffff;
+      height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #container {
+      padding: 20px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-width: 1000px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    #keyboard {
+      display: grid;
+      grid-template-columns: repeat(14, 40px);
+      gap: 5px;
+      margin-top: 20px;
+      user-select: none;
+    }
+
+    .key {
+      background-color: #333;
+      border: 1px solid #555;
+      border-radius: 5px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+      transition: transform 0.1s ease, background-color 0.1s ease;
+      position: relative;
+    }
+
+    .key.pressed {
+      background-color: #666;
+      transform: translateY(2px);
+    }
+
+    .hand {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: url('hand.png') no-repeat center center;
+      background-size: contain;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+
+    #controls {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .adsr-control {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .adsr-control label {
+      width: 60px;
+      text-align: right;
+    }
+
+    input[type=range] {
+      width: 150px;
+    }
+
+    canvas {
+      background-color: #222;
+      border: 1px solid #555;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <pre id="typedText"></pre>
+  </div>
+
+  <div id="keyboard"></div>
+  <div id="hand" class="hand"></div>
+
+  <div id="controls">
+    <label>
+      <input type="checkbox" id="fullPlayback" checked>
+      Play full sound
+    </label>
+
+    <div class="adsr-control"><label>Attack</label><input type="range" id="attack" min="0" max="2" step="0.01" value="0.05"></div>
+    <div class="adsr-control"><label>Decay</label><input type="range" id="decay" min="0" max="2" step="0.01" value="0.1"></div>
+    <div class="adsr-control"><label>Sustain</label><input type="range" id="sustain" min="0" max="1" step="0.01" value="0.8"></div>
+    <div class="adsr-control"><label>Release</label><input type="range" id="release" min="0" max="3" step="0.01" value="0.5"></div>
+
+    <canvas id="envelopeCanvas" width="300" height="100"></canvas>
+  </div>
+
+  <script>
+    const typedText = document.getElementById('typedText');
+    const keyboard = document.getElementById('keyboard');
+    const hand = document.getElementById('hand');
+    const fullPlaybackCheckbox = document.getElementById('fullPlayback');
+
+    const attackSlider = document.getElementById('attack');
+    const decaySlider = document.getElementById('decay');
+    const sustainSlider = document.getElementById('sustain');
+    const releaseSlider = document.getElementById('release');
+    const envelopeCanvas = document.getElementById('envelopeCanvas');
+    const ctx = envelopeCanvas.getContext('2d');
+
+    let userInput = '';
+    const NUM_SOUNDS = 20;
+    const audioBuffers = [];
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    const layout = "1234567890-=qwertyuiop[]asdfghjkl;'zxcvbnm,./";
+    const keyMap = {};
+
+    function createKeyboard() {
+      layout.split('').forEach(char => {
+        const div = document.createElement('div');
+        div.className = 'key';
+        div.textContent = char;
+        div.dataset.key = char;
+        keyboard.appendChild(div);
+        keyMap[char] = div;
+      });
+    }
+
+    function animateKey(key) {
+      const lowerKey = key.toLowerCase();
+      const keyDiv = keyMap[lowerKey];
+      if (!keyDiv) return;
+
+      keyDiv.classList.add('pressed');
+      const rect = keyDiv.getBoundingClientRect();
+      hand.style.left = rect.left + window.scrollX + 5 + 'px';
+      hand.style.top = rect.top + window.scrollY - 20 + 'px';
+      hand.style.opacity = 1;
+
+      setTimeout(() => {
+        keyDiv.classList.remove('pressed');
+        hand.style.opacity = 0;
+      }, 100);
+    }
+
+    async function loadSounds() {
+      for (let i = 1; i <= NUM_SOUNDS; i++) {
+        const filename = `goofy_ahh_sounds - Song jump_${i}.wav`;
+        try {
+          const response = await fetch(filename);
+          const arrayBuffer = await response.arrayBuffer();
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          audioBuffers.push(audioBuffer);
+        } catch (err) {
+          console.warn(`Could not load ${filename}:`, err);
+        }
+      }
+    }
+
+    function playSound(buffer) {
+      const source = audioContext.createBufferSource();
+      const gainNode = audioContext.createGain();
+      source.buffer = buffer;
+      source.connect(gainNode).connect(audioContext.destination);
+
+      const now = audioContext.currentTime;
+
+      if (fullPlaybackCheckbox.checked) {
+        gainNode.gain.setValueAtTime(1, now);
+        source.start();
+        return;
+      }
+
+      // Use ADSR
+      const attack = parseFloat(attackSlider.value);
+      const decay = parseFloat(decaySlider.value);
+      const sustain = parseFloat(sustainSlider.value);
+      const release = parseFloat(releaseSlider.value);
+
+      const envelopeDuration = attack + decay + release;
+      const maxDuration = buffer.duration;
+      const playDuration = Math.min(envelopeDuration, maxDuration);
+
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(1, now + attack); // Attack
+      gainNode.gain.linearRampToValueAtTime(sustain, now + attack + decay); // Decay
+      gainNode.gain.setValueAtTime(sustain, now + attack + decay); // Hold Sustain
+      gainNode.gain.linearRampToValueAtTime(0, now + playDuration); // Release
+
+      source.start(now);
+      source.stop(now + playDuration);
+    }
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace') {
+        userInput = userInput.slice(0, -1);
+      } else if (event.key.length === 1) {
+        userInput += event.key;
+      }
+
+      typedText.textContent = userInput;
+
+      if (audioBuffers.length > 0) {
+        const sound = audioBuffers[Math.floor(Math.random() * audioBuffers.length)];
+        playSound(sound);
+      }
+
+      animateKey(event.key);
+    });
+
+    function drawEnvelope() {
+      const attack = parseFloat(attackSlider.value);
+      const decay = parseFloat(decaySlider.value);
+      const sustain = parseFloat(sustainSlider.value);
+      const release = parseFloat(releaseSlider.value);
+      const totalTime = attack + decay + release;
+
+      ctx.clearRect(0, 0, envelopeCanvas.width, envelopeCanvas.height);
+      ctx.strokeStyle = "#00ff88";
+      ctx.beginPath();
+      ctx.moveTo(0, 100);
+
+      const pxPerSecond = envelopeCanvas.width / totalTime;
+      const height = envelopeCanvas.height;
+
+      ctx.lineTo(attack * pxPerSecond, 0);
+      ctx.lineTo((attack + decay) * pxPerSecond, (1 - sustain) * height);
+      ctx.lineTo((attack + decay + 0.01) * pxPerSecond, (1 - sustain) * height); // hold point
+      ctx.lineTo((attack + decay + release) * pxPerSecond, height);
+      ctx.stroke();
+    }
+
+    [attackSlider, decaySlider, sustainSlider, releaseSlider].forEach(slider => {
+      slider.addEventListener('input', drawEnvelope);
+    });
+
+    createKeyboard();
+    loadSounds();
+    drawEnvelope();
+  </script>
+</body>
+</html>
