@@ -119,11 +119,11 @@
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const pianoSamples = [];
-    const pianoFileNames = [
-      "piano (1).wav", "piano (2).wav", "piano (3).wav", "piano (4).wav",
-      "piano (5).wav", "piano (6).wav", "piano (7).wav", "piano (8).wav",
-      "piano (9).wav", "piano (10).wav"
-    ];
+    const pianoFileNames = [];
+    for (let i = 1; i <= 53; i++) {
+      pianoFileNames.push(`piano (${i}).wav`);
+    }
+
 
     async function loadSamples() {
       for (const file of pianoFileNames) {

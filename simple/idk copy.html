@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🔥 Rage Typing + Piano Pitch + Shimmer Reverb</title>
+  <style>
+    html, body {
+      margin: 0;
+      background: #111;
+      color: white;
+      font-family: monospace;
+      overflow: hidden;
+    }
+
+    body.shake {
+      animation: shake 0.3s;
+    }
+
+    @keyframes shake {
+      0% { transform: translate(2px, 2px); }
+      25% { transform: translate(-2px, -4px); }
+      50% { transform: translate(-4px, 4px); }
+      75% { transform: translate(4px, -2px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    .glitch {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,0,0,0.1) 3px);
+      mix-blend-mode: screen;
+      animation: glitchAnim 0.2s infinite;
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    @keyframes glitchAnim {
+      0% { transform: translate(0, 0); opacity: 1; }
+      50% { transform: translate(2px, -2px); opacity: 0.4; }
+      100% { transform: translate(-1px, 1px); opacity: 1; }
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 3rem;
+    }
+
+    textarea {
+      background: #222;
+      color: #0f0;
+      font-size: 1.2rem;
+      border: none;
+      padding: 1rem;
+      width: 80%;
+      height: 200px;
+      resize: none;
+      outline: none;
+      box-shadow: 0 0 10px lime;
+      position: relative;
+      z-index: 1;
+    }
+
+    .controls {
+      position: absolute;
+      top: 1rem;
+      left: 2rem;
+      background: #222;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #0ff;
+      z-index: 10;
+    }
+
+    .controls label {
+      display: block;
+      margin: 0.3rem 0;
+      font-size: 0.9rem;
+    }
+
+    button {
+      margin-top: 5px;
+      background: #444;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    #keyGraph {
+      display: none;
+      margin-top: 1rem;
+      width: 80%;
+      height: 200px;
+    }
+
+    #wpmDisplay {
+      margin-top: 1rem;
+      font-size: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <label>
+      <input type="checkbox" id="bpmToggle" checked /> Enable BPM Shake/Glitch
+    </label>
+    <label>
+      BPM: <input type="number" id="bpmInput" value="120" min="30" max="300" />
+    </label>
+    <label>
+      Attack: <input type="range" id="attack" min="0" max="1" step="0.01" value="0.1" />
+    </label>
+    <label>
+      Decay: <input type="range" id="decay" min="0" max="1" step="0.01" value="0.2" />
+    </label>
+    <label>
+      Sustain: <input type="range" id="sustain" min="0" max="1" step="0.01" value="0.5" />
+    </label>
+    <label>
+      Release: <input type="range" id="release" min="0" max="1" step="0.01" value="0.3" />
+    </label>
+    <label>
+      Amplitude: <input type="range" id="amplitude" min="0" max="1" step="0.01" value="0.5" />
+    </label>
+    <div>
+      <button onclick="adjustPitch(-1)">Pitch -</button>
+      <button onclick="adjustPitch(1)">Pitch +</button>
+      <button id="showGraph">Show Key Graph</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>🔥 Rage Typing + Piano Pitch + Reverb</h2>
+    <div id="wpmDisplay">WPM: 0</div>
+    <textarea id="rageBox" placeholder="Type with rage..."></textarea>
+    <canvas id="fireCanvas" width="800" height="200"></canvas>
+    <canvas id="keyGraph" width="800" height="200"></canvas>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.min.js"></script>
+  <script>
+    const textarea = document.getElementById('rageBox');
+    const bpmToggle = document.getElementById('bpmToggle');
+    const bpmInput = document.getElementById('bpmInput');
+    const attackSlider = document.getElementById('attack');
+    const decaySlider = document.getElementById('decay');
+    const sustainSlider = document.getElementById('sustain');
+    const releaseSlider = document.getElementById('release');
+    const amplitudeSlider = document.getElementById('amplitude');
+    const showGraphBtn = document.getElementById('showGraph');
+    const wpmDisplay = document.getElementById('wpmDisplay');
+    const fireCanvas = document.getElementById('fireCanvas');
+    const fireCtx = fireCanvas.getContext('2d');
+    const keyGraphCanvas = document.getElementById('keyGraph');
+    let keyGraph = null; // Single Chart instance
+    const keyPresses = {};
+
+    let pitchShift = 0;
+    let lastKeyTime = Date.now();
+    let charCount = 0;
+    let wpm = 0;
+    let particles = [];
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.setValueAtTime(-3, audioCtx.currentTime); // -3 dB limiter
+    limiter.knee.setValueAtTime(0, audioCtx.currentTime);
+    limiter.ratio.setValueAtTime(20, audioCtx.currentTime);
+    limiter.attack.setValueAtTime(0.003, audioCtx.currentTime);
+    limiter.release.setValueAtTime(0.250, audioCtx.currentTime);
+    audioCtx.destination.connect(limiter).connect(audioCtx.destination);
+
+    const pianoSamples = [];
+    const pianoFileNames = [];
+    for (let i = 1; i <= 53; i++) {
+      pianoFileNames.push(`piano (${i}).wav`);
+    }
+
+    let convolver = null;
+
+    async function loadImpulseResponse() {
+      const response = await fetch("shimmer-ir.wav");
+      const arrayBuffer = await response.arrayBuffer();
+      convolver = audioCtx.createConvolver();
+      convolver.buffer = await audioCtx.decodeAudioData(arrayBuffer);
+    }
+
+    async function loadSamples() {
+      for (const file of pianoFileNames) {
+        const res = await fetch(file);
+        const buf = await res.arrayBuffer();
+        const audio = await audioCtx.decodeAudioData(buf);
+        pianoSamples.push(audio);
+      }
+    }
+
+    function createEnvelope(source, attack, decay, sustain, release, amplitude) {
+      const gainNode = audioCtx.createGain();
+      source.connect(gainNode).connect(limiter); // Connect to limiter
+      source.connect(convolver).connect(gainNode).connect(limiter); // Wet path
+
+      const now = audioCtx.currentTime;
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(1, now + attack);
+      gainNode.gain.linearRampToValueAtTime(sustain, now + attack + decay);
+      gainNode.gain.setValueAtTime(sustain, now + attack + decay + 1);
+      gainNode.gain.linearRampToValueAtTime(0, now + attack + decay + 1 + release);
+      gainNode.gain.value = amplitude; // Apply amplitude after envelope
+
+      return gainNode;
+    }
+
+    function playPiano() {
+      if (pianoSamples.length === 0 || !convolver) return;
+      const index = Math.floor(Math.random() * pianoSamples.length);
+      const source = audioCtx.createBufferSource();
+      source.buffer = pianoSamples[index];
+      source.playbackRate.value = Math.pow(2, pitchShift / 12);
+
+      const gainNode = createEnvelope(source, 
+        parseFloat(attackSlider.value), 
+        parseFloat(decaySlider.value), 
+        parseFloat(sustainSlider.value), 
+        parseFloat(releaseSlider.value), 
+        parseFloat(amplitudeSlider.value)
+      );
+
+      source.start(0);
+    }
+
+    function adjustPitch(change) {
+      pitchShift += change;
+    }
+
+    function triggerShakeGlitch() {
+      document.body.classList.add('shake');
+      setTimeout(() => document.body.classList.remove('shake'), 300);
+
+      const glitchElem = document.createElement('div');
+      glitchElem.className = 'glitch';
+      document.body.appendChild(glitchElem);
+      setTimeout(() => glitchElem.remove(), 300);
+    }
+
+    let bpmInterval;
+    function startBPM() {
+      clearInterval(bpmInterval);
+      const bpm = parseInt(bpmInput.value);
+      const interval = 60000 / bpm;
+      bpmInterval = setInterval(() => {
+        if (bpmToggle.checked) triggerShakeGlitch();
+      }, interval);
+    }
+
+    function createFireParticle(x, y) {
+      particles.push({
+        x: x,
+        y: y,
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.8) * -2,
+        life: 1,
+        size: Math.random() * 5 + 2
+      });
+    }
+
+    function updateParticles() {
+      fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.1; // Gravity
+        p.life -= 0.02;
+        fireCtx.fillStyle = `rgba(255, ${p.life * 255}, 0, ${p.life})`;
+        fireCtx.beginPath();
+        fireCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        fireCtx.fill();
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+      requestAnimationFrame(updateParticles);
+    }
+
+    textarea.addEventListener('input', () => {
+      playPiano();
+      if (!bpmToggle.checked) triggerShakeGlitch();
+
+      const rect = textarea.getBoundingClientRect();
+      const cursorPos = textarea.selectionStart;
+      const text = textarea.value.substring(0, cursorPos).split('\n');
+      let x = 0, y = 0;
+      for (let i = 0; i < text.length - 1; i++) x += text[i].length + 1;
+      y = text.length - 1;
+      const cursorX = rect.left + (x * 8) + 10; // Approximate character width
+      const cursorY = rect.top + (y * 20) + 10; // Approximate line height
+      createFireParticle(cursorX, cursorY);
+
+      charCount++;
+      const now = Date.now();
+      const timeDiff = (now - lastKeyTime) / 1000;
+      if (timeDiff >= 60) {
+        const words = charCount / 5; // Average 5 chars per word
+        wpm = Math.round((words / (timeDiff / 60)) * 60);
+        wpmDisplay.textContent = `WPM: ${wpm}`;
+        charCount = 0;
+        lastKeyTime = now;
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      keyPresses[e.key] = (keyPresses[e.key] || 0) + 1;
+    });
+
+    showGraphBtn.addEventListener('click', () => {
+      const sortedKeys = Object.entries(keyPresses)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5); // Top 5 abused keys
+      const labels = sortedKeys.map(([key]) => key);
+      const data = sortedKeys.map(([, count]) => count);
+
+      if (!keyGraph) {
+        keyGraph = new Chart(keyGraphCtx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Key Presses',
+              data: data,
+              backgroundColor: 'rgba(255, 99, 132, 0.5)',
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
+          }
+        });
+        keyGraphCanvas.style.display = 'block';
+      } else {
+        keyGraph.data.labels = labels;
+        keyGraph.data.datasets[0].data = data;
+        keyGraph.update();
+      }
+    });
+
+    bpmToggle.addEventListener('change', () => {
+      if (bpmToggle.checked) startBPM();
+      else clearInterval(bpmInterval);
+    });
+
+    bpmInput.addEventListener('input', () => {
+      if (bpmToggle.checked) startBPM();
+    });
+
+    loadSamples();
+    loadImpulseResponse();
+    startBPM();
+    updateParticles();
+  </script>
+</body>
+</html>
