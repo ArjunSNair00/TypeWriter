@@ -1,0 +1,15 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+  .curtain { width: 50%; height: 100%; background: url('velvet-curtain.png'); position: absolute; }
+  .curtain-left { left: 0; }
+  .curtain-right { right: 0; }
+</style>
+<div class="curtain curtain-left"></div>
+<div class="curtain curtain-right"></div>
+<script>
+  function openCurtains() {
+    gsap.to('.curtain-left', { x: '-100%', duration: 2, ease: 'power2.out' });
+    gsap.to('.curtain-right', { x: '100%', duration: 2, ease: 'power2.out' });
+  }
+  document.getElementById('cinema-mode').addEventListener('click', openCurtains);
+</script>

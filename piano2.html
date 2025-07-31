@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Typing Synth</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+    }
+    #visual {
+      margin-top: 1rem;
+      font-size: 1.2rem;
+      min-height: 1.5rem;
+      color: green;
+    }
+    .slider-label {
+      margin-top: 1rem;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🎹 Typewriter Synth</h2>
+
+  <label for="keySelect">Key: </label>
+  <select id="keySelect">
+    <option value="0">C</option>
+    <option value="2">D</option>
+    <option value="4">E</option>
+    <option value="5">F</option>
+    <option value="7">G</option>
+    <option value="9">A</option>
+    <option value="11">B</option>
+    <option value="1">C# / Db</option>
+    <option value="3">D# / Eb</option>
+    <option value="6">F# / Gb</option>
+    <option value="8">G# / Ab</option>
+    <option value="10">A# / Bb</option>
+  </select>
+
+  <br><br>
+
+  <label>
+    <input type="checkbox" id="chordMode"> Play Chords
+  </label>
+
+  <br><br>
+
+  <label class="slider-label">Echo Amount:
+    <input type="range" id="delaySlider" min="0" max="1" step="0.01" value="0.3">
+  </label>
+
+  <label class="slider-label">Reverb Amount:
+    <input type="range" id="reverbSlider" min="0" max="1" step="0.01" value="0.5">
+  </label>
+
+  <br><br>
+  <input type="text" id="typefield" placeholder="Type something..." style="width: 300px; padding: 10px; font-size: 1.2rem;" />
+
+  <div id="visual"></div>
+
+  <script>
+    const baseScale = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
+
+    const delay = new Tone.FeedbackDelay("8n", 0.25);
+    const reverb = new Tone.Reverb({ decay: 2, wet: 0.5 });
+    const synth = new Tone.PolySynth(Tone.Synth).chain(delay, reverb, Tone.Destination);
+
+    // Update effects
+    document.getElementById("delaySlider").addEventListener("input", e => {
+      delay.wet.value = parseFloat(e.target.value);
+    });
+    document.getElementById("reverbSlider").addEventListener("input", e => {
+      reverb.wet.value = parseFloat(e.target.value);
+    });
+
+    // Note-to-MIDI and vice versa
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    function noteToMidi(note) {
+      const pitch = note.slice(0, -1);
+      const octave = parseInt(note.slice(-1));
+      const semitone = noteNames.indexOf(pitch);
+      return semitone + 12 * (octave + 1);
+    }
+
+    function midiToNote(midi) {
+      const pitch = noteNames[midi % 12];
+      const octave = Math.floor(midi / 12) - 1;
+      return pitch + octave;
+    }
+
+    function getShiftedScale(base, semitoneShift) {
+      return base.map(note => {
+        const midi = noteToMidi(note);
+        return midiToNote(midi + semitoneShift);
+      });
+    }
+
+    const field = document.getElementById("typefield");
+    const visual = document.getElementById("visual");
+
+    field.addEventListener("keydown", async e => {
+      await Tone.start();
+
+      const keyShift = parseInt(document.getElementById("keySelect").value);
+      const scale = getShiftedScale(baseScale, keyShift);
+      const chordMode = document.getElementById("chordMode").checked;
+
+      let notes = [];
+
+      if (chordMode) {
+        while (notes.length < 3) {
+          let note = scale[Math.floor(Math.random() * scale.length)];
+          if (!notes.includes(note)) notes.push(note);
+        }
+      } else {
+        notes.push(scale[Math.floor(Math.random() * scale.length)]);
+      }
+
+      synth.triggerAttackRelease(notes, "8n");
+      visual.textContent = "🎵 " + notes.join(", ");
+    });
+  </script>
+
+</body>
+</html>

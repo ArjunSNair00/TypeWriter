@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TypeRighter Piano</title>
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.js"></script>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 2rem;
+      background: #111;
+      color: white;
+    }
+    textarea {
+      width: 100%;
+      height: 200px;
+      font-size: 1.2rem;
+      background: #222;
+      color: #0f0;
+      padding: 1rem;
+      border: none;
+      outline: none;
+    }
+    .controls {
+      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+    }
+    label {
+      font-size: 0.9rem;
+    }
+    select, input[type="range"] {
+      margin-left: 0.5rem;
+    }
+    #loading {
+      color: #888;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h2>🎹 TypeRighter — Real Piano</h2>
+  <div id="loading">Loading piano samples...</div>
+  <textarea id="typebox" placeholder="Please wait..." disabled></textarea>
+
+  <div class="controls">
+    <label>
+      Key:
+      <select id="keySelect">
+        <option value="0">C</option>
+        <option value="1">C#</option>
+        <option value="2">D</option>
+        <option value="3">D#</option>
+        <option value="4">E</option>
+        <option value="5">F</option>
+        <option value="6">F#</option>
+        <option value="7">G</option>
+        <option value="8">G#</option>
+        <option value="9">A</option>
+        <option value="10">A#</option>
+        <option value="11">B</option>
+      </select>
+    </label>
+
+    <label>
+      <input type="checkbox" id="chordToggle" /> Play chords
+    </label>
+
+    <label>
+      Echo:
+      <input type="range" id="echoSlider" min="0" max="1" step="0.01" value="0.2" />
+    </label>
+
+    <label>
+      Reverb:
+      <input type="range" id="reverbSlider" min="0" max="1" step="0.01" value="0.7" />
+    </label>
+  </div>
+
+  <script>
+    const semitones = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const baseNotes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4"];
+
+    const delay = new Tone.FeedbackDelay("8n", 0.4);
+    const reverb = new Tone.Reverb({ decay: 6, wet: 0.7 });
+
+    const piano = new Tone.Sampler({
+      urls: {
+        A0: "A0.mp3",
+        C1: "C1.mp3",
+        "D#1": "Ds1.mp3",
+        "F#1": "Fs1.mp3",
+        A1: "A1.mp3",
+        C2: "C2.mp3",
+        "D#2": "Ds2.mp3",
+        "F#2": "Fs2.mp3",
+        A2: "A2.mp3",
+        C3: "C3.mp3",
+        "D#3": "Ds3.mp3",
+        "F#3": "Fs3.mp3",
+        A3: "A3.mp3",
+        C4: "C4.mp3",
+        "D#4": "Ds4.mp3",
+        "F#4": "Fs4.mp3",
+        A4: "A4.mp3",
+        C5: "C5.mp3",
+        "D#5": "Ds5.mp3",
+        "F#5": "Fs5.mp3",
+        A5: "A5.mp3",
+        C6: "C6.mp3",
+        "D#6": "Ds6.mp3",
+        "F#6": "Fs6.mp3",
+        A6: "A6.mp3",
+        C7: "C7.mp3",
+        "D#7": "Ds7.mp3",
+        "F#7": "Fs7.mp3",
+        A7: "A7.mp3",
+        C8: "C8.mp3"
+      },
+      release: 1,
+      baseUrl: "https://tonejs.github.io/audio/salamander/"
+    }).chain(delay, reverb, Tone.Destination);
+
+    const textarea = document.getElementById("typebox");
+    const keySelect = document.getElementById("keySelect");
+    const chordToggle = document.getElementById("chordToggle");
+    const echoSlider = document.getElementById("echoSlider");
+    const reverbSlider = document.getElementById("reverbSlider");
+    const loading = document.getElementById("loading");
+
+    // Controls
+    echoSlider.oninput = () => delay.wet.value = parseFloat(echoSlider.value);
+    reverbSlider.oninput = () => reverb.wet.value = parseFloat(reverbSlider.value);
+
+    // Audio unlock
+    let started = false;
+    window.addEventListener("click", async () => {
+      if (!started) {
+        await Tone.start();
+        started = true;
+        console.log("🔊 Audio context started");
+      }
+    }, { once: true });
+
+    function getNoteFromChar(char, transpose = 0) {
+      const base = baseNotes[char.charCodeAt(0) % baseNotes.length];
+      const pitch = base.slice(0, -1);
+      const octave = base.slice(-1);
+      const transposedIndex = (semitones.indexOf(pitch) + transpose + 12) % 12;
+      return semitones[transposedIndex] + octave;
+    }
+
+    function enableTyping() {
+      loading.remove();
+      textarea.disabled = false;
+      textarea.placeholder = "Start typing...";
+    }
+
+    piano.loaded.then(() => {
+      console.log("🎹 Piano samples loaded");
+      enableTyping();
+    });
+
+    textarea.addEventListener("input", () => {
+      const char = textarea.value.slice(-1);
+      if (!char.trim()) return;
+
+      const transpose = parseInt(keySelect.value);
+      const note = getNoteFromChar(char, transpose);
+
+      if (chordToggle.checked) {
+        const chord = [
+          note,
+          getNoteFromChar(String.fromCharCode(char.charCodeAt(0) + 2), transpose),
+          getNoteFromChar(String.fromCharCode(char.charCodeAt(0) + 4), transpose)
+        ];
+        chord.forEach(n => piano.triggerAttackRelease(n, "8n", Tone.now()));
+      } else {
+        piano.triggerAttackRelease(note, "8n", Tone.now());
+      }
+    });
+  </script>
+</body>
+</html>

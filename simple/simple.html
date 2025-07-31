@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Typing Soundboard with Semitone Pitch</title>
+  <style>
+    body {
+      font-family: monospace;
+      background-color: #111;
+      color: #0f0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #typedText {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      border: 1px solid #444;
+      padding: 10px;
+      width: 80%;
+      min-height: 100px;
+      background: #000;
+    }
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .adsr-control, .pitch-control {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    button {
+      background: #222;
+      border: 1px solid #555;
+      color: #0f0;
+      padding: 5px 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Typing Soundboard 🎹</h1>
+  <div id="typedText"></div>
+
+  <div class="controls">
+    <label><input type="checkbox" id="fullPlayback" checked> Play full sound</label>
+
+    <div class="adsr-control">
+      <label>Attack</label><input type="range" id="attack" min="0" max="2" step="0.01" value="0.05">
+      <label>Decay</label><input type="range" id="decay" min="0" max="2" step="0.01" value="0.1">
+      <label>Sustain</label><input type="range" id="sustain" min="0" max="1" step="0.01" value="0.8">
+      <label>Release</label><input type="range" id="release" min="0" max="3" step="0.01" value="0.5">
+    </div>
+
+    <div class="pitch-control">
+      <button onclick="changeSemitone(-1)">-</button>
+      <span id="pitchDisplay">Pitch: 0 semitones</span>
+      <button onclick="changeSemitone(1)">+</button>
+    </div>
+  </div>
+
+  <script>
+    const typedText = document.getElementById('typedText');
+    const fullPlaybackCheckbox = document.getElementById('fullPlayback');
+
+    const attackSlider = document.getElementById('attack');
+    const decaySlider = document.getElementById('decay');
+    const sustainSlider = document.getElementById('sustain');
+    const releaseSlider = document.getElementById('release');
+    const pitchDisplay = document.getElementById('pitchDisplay');
+
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffers = [];
+    const NUM_SOUNDS = 10; // You must provide piano (1).wav to piano (10).wav
+    let pitchSemitoneOffset = 0;
+
+    async function loadSounds() {
+      for (let i = 1; i <= NUM_SOUNDS; i++) {
+        const filename = `piano (${i}).wav`;
+        try {
+          const response = await fetch(filename);
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = await audioContext.decodeAudioData(arrayBuffer);
+          audioBuffers.push(buffer);
+        } catch (err) {
+          console.warn("Error loading", filename, err);
+        }
+      }
+    }
+
+    function semitoneToPlaybackRate(semitoneOffset) {
+      return Math.pow(2, semitoneOffset / 12);
+    }
+
+    function changeSemitone(delta) {
+      pitchSemitoneOffset += delta;
+      pitchDisplay.textContent = `Pitch: ${pitchSemitoneOffset} semitones`;
+    }
+
+    function playSound(buffer) {
+      const source = audioContext.createBufferSource();
+      const gainNode = audioContext.createGain();
+
+      source.buffer = buffer;
+      source.playbackRate.value = semitoneToPlaybackRate(pitchSemitoneOffset);
+
+      source.connect(gainNode).connect(audioContext.destination);
+
+      const now = audioContext.currentTime;
+
+      if (fullPlaybackCheckbox.checked) {
+        gainNode.gain.setValueAtTime(1, now);
+        source.start(now);
+        return;
+      }
+
+      const attack = parseFloat(attackSlider.value);
+      const decay = parseFloat(decaySlider.value);
+      const sustain = parseFloat(sustainSlider.value);
+      const release = parseFloat(releaseSlider.value);
+
+      const envelopeDuration = attack + decay + release;
+      const maxDuration = buffer.duration;
+      const playDuration = Math.min(envelopeDuration, maxDuration);
+
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(1, now + attack);
+      gainNode.gain.linearRampToValueAtTime(sustain, now + attack + decay);
+      gainNode.gain.setValueAtTime(sustain, now + attack + decay);
+      gainNode.gain.linearRampToValueAtTime(0, now + playDuration);
+
+      source.start(now);
+      source.stop(now + playDuration);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key.length === 1 || e.key === 'Enter') {
+        typedText.textContent += (e.key === 'Enter') ? '\n' : e.key;
+        if (audioBuffers.length > 0) {
+          const randomBuffer = audioBuffers[Math.floor(Math.random() * audioBuffers.length)];
+          playSound(randomBuffer);
+        }
+      } else if (e.key === 'Backspace') {
+        typedText.textContent = typedText.textContent.slice(0, -1);
+      }
+    });
+
+    loadSounds();
+  </script>
+</body>
+</html>

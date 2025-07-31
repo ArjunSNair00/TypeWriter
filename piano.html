@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Key Selector Typing Synth</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 2rem">
+  <h2>Type to Play Notes</h2>
+
+  <label for="keySelect">Choose Key: </label>
+  <select id="keySelect">
+    <option value="0">C</option>
+    <option value="2">D</option>
+    <option value="4">E</option>
+    <option value="5">F</option>
+    <option value="7">G</option>
+    <option value="9">A</option>
+    <option value="11">B</option>
+    <option value="1">C# / Db</option>
+    <option value="3">D# / Eb</option>
+    <option value="6">F# / Gb</option>
+    <option value="8">G# / Ab</option>
+    <option value="10">A# / Bb</option>
+  </select>
+
+  <br><br>
+  <input type="text" id="typefield" placeholder="Start typing..." style="width: 300px; padding: 10px; font-size: 1.2rem;" />
+
+  <script>
+    const baseScale = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
+    let currentKeyShift = 0;
+
+    // Convert note like "C4" to MIDI number
+    function noteToMidi(note) {
+      const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const pitch = note.slice(0, -1);
+      const octave = parseInt(note.slice(-1));
+      const semitone = noteNames.indexOf(pitch);
+      return semitone + 12 * (octave + 1);
+    }
+
+    // Convert MIDI number to note name
+    function midiToNote(midi) {
+      const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const pitch = noteNames[midi % 12];
+      const octave = Math.floor(midi / 12) - 1;
+      return pitch + octave;
+    }
+
+    function getShiftedScale(base, semitoneShift) {
+      return base.map(note => {
+        const midi = noteToMidi(note);
+        return midiToNote(midi + semitoneShift);
+      });
+    }
+
+    const synth = new Tone.Synth().toDestination();
+
+    const field = document.getElementById("typefield");
+    field.addEventListener("keydown", async e => {
+      await Tone.start();
+
+      const keyShift = parseInt(document.getElementById("keySelect").value);
+      const scale = getShiftedScale(baseScale, keyShift);
+      const note = scale[Math.floor(Math.random() * scale.length)];
+      synth.triggerAttackRelease(note, "8n");
+    });
+  </script>
+</body>
+</html>

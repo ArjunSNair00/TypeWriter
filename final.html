@@ -1,0 +1,15 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/javascript/javascript.min.js"></script>
+<textarea id="editor"></textarea>
+<script>
+  const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+    mode: 'javascript',
+    theme: 'monokai',
+    lineNumbers: true
+  });
+  editor.on('keydown', () => {
+    // Track WPM or trigger meme sound
+    console.log('Key pressed!');
+  });
+</script>

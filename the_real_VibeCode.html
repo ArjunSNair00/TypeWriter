@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🔥 Rage Typing + BPM Glitch + Smart Shake</title>
+  <style>
+    html, body {
+      margin: 0;
+      background: #111;
+      color: white;
+      font-family: monospace;
+      overflow: hidden;
+    }
+
+    body.shake {
+      animation: shake 0.3s;
+    }
+
+    @keyframes shake {
+      0% { transform: translate(2px, 2px); }
+      25% { transform: translate(-2px, -4px); }
+      50% { transform: translate(-4px, 4px); }
+      75% { transform: translate(4px, -2px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    .glitch {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,0,0,0.1) 3px);
+      mix-blend-mode: screen;
+      animation: glitchAnim 0.2s infinite;
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    @keyframes glitchAnim {
+      0% { transform: translate(0, 0); opacity: 1; }
+      50% { transform: translate(2px, -2px); opacity: 0.4; }
+      100% { transform: translate(-1px, 1px); opacity: 1; }
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 3rem;
+    }
+
+    textarea {
+      background: #222;
+      color: #0f0;
+      font-size: 1.2rem;
+      border: none;
+      padding: 1rem;
+      width: 80%;
+      height: 200px;
+      resize: none;
+      outline: none;
+      box-shadow: 0 0 10px lime;
+      z-index: 1;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .face {
+      position: fixed;
+      top: 1rem;
+      right: 2rem;
+      display: flex;
+      gap: 1rem;
+      z-index: 9;
+    }
+
+    .eye {
+      width: 60px;
+      height: 60px;
+      background: white;
+      border-radius: 50%;
+      position: relative;
+      border: 3px solid #333;
+    }
+
+    .pupil {
+      width: 20px;
+      height: 20px;
+      background: black;
+      border-radius: 50%;
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      transition: top 0.05s, left 0.05s;
+    }
+
+    .fire {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: url('https://media.giphy.com/media/l0HlQ7LRalfoyJzDi/giphy.gif') no-repeat center;
+      background-size: contain;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .typewriter-output {
+      margin-top: 2rem;
+      width: 80%;
+      font-size: 1.2rem;
+      color: #0ff;
+      min-height: 2rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      border-top: 1px dashed #0ff;
+      padding-top: 1rem;
+    }
+
+    .controls {
+      position: absolute;
+      top: 1rem;
+      left: 2rem;
+      background: #222;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #0ff;
+      z-index: 10;
+    }
+
+    .controls label {
+      display: block;
+      margin: 0.3rem 0;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="particles"></canvas>
+
+  <div class="face">
+    <div class="eye"><div class="pupil"></div></div>
+    <div class="eye"><div class="pupil"></div></div>
+  </div>
+
+  <div class="controls">
+    <label>
+      <input type="checkbox" id="bpmToggle" checked />
+      Enable BPM Shake/Glitch
+    </label>
+    <label>
+      BPM: <input type="number" id="bpmInput" value="120" min="30" max="300" />
+    </label>
+  </div>
+
+  <div class="container">
+    <h2>🔥 Rage Typing + BPM Glitch</h2>
+    <textarea id="rageBox" placeholder="Type with rage..."></textarea>
+    <div class="typewriter-output" id="output"></div>
+  </div>
+
+  <script>
+    const textarea = document.getElementById('rageBox');
+    const output = document.getElementById('output');
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    const bpmToggle = document.getElementById('bpmToggle');
+    const bpmInput = document.getElementById('bpmInput');
+
+    let particles = [];
+    let queue = [];
+
+    let lastTypeTime = 0;
+    const FAST_TYPING_THRESHOLD = 120; // ms
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function addParticles(x, y) {
+      for (let i = 0; i < 10; i++) {
+        particles.push({
+          x, y,
+          dx: (Math.random() - 0.5) * 6,
+          dy: (Math.random() - 0.5) * 6,
+          alpha: 1,
+          radius: Math.random() * 4 + 2,
+          color: `hsl(${Math.random() * 360}, 100%, 50%)`
+        });
+      }
+    }
+
+    function updateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles = particles.filter(p => p.alpha > 0.01);
+      particles.forEach(p => {
+        p.x += p.dx;
+        p.y += p.dy;
+        p.alpha *= 0.95;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color.replace('hsl', 'hsla').replace(')', `,${p.alpha})`);
+        ctx.fill();
+      });
+      requestAnimationFrame(updateParticles);
+    }
+    updateParticles();
+
+    textarea.addEventListener('input', (e) => {
+      const now = Date.now();
+      const typed = e.data;
+      const { selectionStart } = textarea;
+      const rect = textarea.getBoundingClientRect();
+      const x = rect.left + 40 + (selectionStart % 60) * 7;
+      const y = rect.top + 40 + Math.floor(selectionStart / 60) * 20;
+
+      addParticles(x, y);
+      playSound();
+
+      if (typed) queue.push(typed);
+
+      if (typed === '\n') {
+        const fire = document.createElement('div');
+        fire.className = 'fire';
+        fire.style.left = `${x}px`;
+        fire.style.top = `${y}px`;
+        document.body.appendChild(fire);
+        setTimeout(() => fire.remove(), 1200);
+      }
+
+      if (!bpmToggle.checked && now - lastTypeTime < FAST_TYPING_THRESHOLD) {
+        triggerShakeGlitch();
+      }
+
+      lastTypeTime = now;
+    });
+
+    function playSound() {
+      const audio = new Audio('https://www.myinstants.com/media/sounds/windows-xp-error.mp3');
+      audio.volume = 0.3;
+      audio.play().catch(() => {});
+    }
+
+    setInterval(() => {
+      if (queue.length > 0) {
+        const char = queue.shift();
+        output.textContent += char;
+      }
+    }, 25);
+
+    // Eye tracking
+    const eyes = document.querySelectorAll('.eye');
+    document.addEventListener('mousemove', (e) => {
+      eyes.forEach(eye => {
+        const pupil = eye.querySelector('.pupil');
+        const rect = eye.getBoundingClientRect();
+        const dx = e.clientX - (rect.left + 30);
+        const dy = e.clientY - (rect.top + 30);
+        const angle = Math.atan2(dy, dx);
+        const radius = 15;
+        pupil.style.left = `${20 + Math.cos(angle) * radius}px`;
+        pupil.style.top = `${20 + Math.sin(angle) * radius}px`;
+      });
+    });
+
+    function triggerShakeGlitch() {
+      document.body.classList.add('shake');
+      setTimeout(() => document.body.classList.remove('shake'), 300);
+
+      const glitchElem = document.createElement('div');
+      glitchElem.className = 'glitch';
+      document.body.appendChild(glitchElem);
+      setTimeout(() => glitchElem.remove(), 300);
+    }
+
+    // BPM-based shake + glitch
+    let bpmInterval = null;
+    function startBPM() {
+      clearInterval(bpmInterval);
+      const bpm = parseInt(bpmInput.value);
+      const interval = 60000 / bpm;
+      bpmInterval = setInterval(() => {
+        if (bpmToggle.checked) triggerShakeGlitch();
+      }, interval);
+    }
+
+    bpmToggle.addEventListener('change', () => {
+      if (bpmToggle.checked) startBPM();
+      else clearInterval(bpmInterval);
+    });
+
+    bpmInput.addEventListener('input', () => {
+      if (bpmToggle.checked) startBPM();
+    });
+
+    startBPM(); // Initial start
+  </script>
+</body>
+</html>

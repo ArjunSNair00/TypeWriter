@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🔥 Rage Typing + Piano Pitch</title>
+  <style>
+    html, body {
+      margin: 0;
+      background: #111;
+      color: white;
+      font-family: monospace;
+      overflow: hidden;
+    }
+
+    body.shake {
+      animation: shake 0.3s;
+    }
+
+    @keyframes shake {
+      0% { transform: translate(2px, 2px); }
+      25% { transform: translate(-2px, -4px); }
+      50% { transform: translate(-4px, 4px); }
+      75% { transform: translate(4px, -2px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    .glitch {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,0,0,0.1) 3px);
+      mix-blend-mode: screen;
+      animation: glitchAnim 0.2s infinite;
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    @keyframes glitchAnim {
+      0% { transform: translate(0, 0); opacity: 1; }
+      50% { transform: translate(2px, -2px); opacity: 0.4; }
+      100% { transform: translate(-1px, 1px); opacity: 1; }
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 3rem;
+    }
+
+    textarea {
+      background: #222;
+      color: #0f0;
+      font-size: 1.2rem;
+      border: none;
+      padding: 1rem;
+      width: 80%;
+      height: 200px;
+      resize: none;
+      outline: none;
+      box-shadow: 0 0 10px lime;
+      z-index: 1;
+    }
+
+    .controls {
+      position: absolute;
+      top: 1rem;
+      left: 2rem;
+      background: #222;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #0ff;
+      z-index: 10;
+    }
+
+    .controls label {
+      display: block;
+      margin: 0.3rem 0;
+      font-size: 0.9rem;
+    }
+
+    button {
+      margin-top: 5px;
+      background: #444;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <label>
+      <input type="checkbox" id="bpmToggle" checked /> Enable BPM Shake/Glitch
+    </label>
+    <label>
+      BPM: <input type="number" id="bpmInput" value="120" min="30" max="300" />
+    </label>
+    <div>
+      <button onclick="adjustPitch(-1)">Pitch -</button>
+      <button onclick="adjustPitch(1)">Pitch +</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>🔥 Rage Typing + Piano Pitch</h2>
+    <textarea id="rageBox" placeholder="Type with rage..."></textarea>
+  </div>
+
+  <script>
+    const textarea = document.getElementById('rageBox');
+    const bpmToggle = document.getElementById('bpmToggle');
+    const bpmInput = document.getElementById('bpmInput');
+
+    let pitchShift = 0;
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const pianoSamples = [];
+    const pianoFileNames = [
+      "piano (1).wav", "piano (2).wav", "piano (3).wav", "piano (4).wav",
+      "piano (5).wav", "piano (6).wav", "piano (7).wav", "piano (8).wav",
+      "piano (9).wav", "piano (10).wav"
+    ];
+
+    async function loadSamples() {
+      for (const file of pianoFileNames) {
+        const res = await fetch(file);
+        const buf = await res.arrayBuffer();
+        const audio = await audioCtx.decodeAudioData(buf);
+        pianoSamples.push(audio);
+      }
+    }
+
+    function playPiano() {
+      if (pianoSamples.length === 0) return;
+      const index = Math.floor(Math.random() * pianoSamples.length);
+      const source = audioCtx.createBufferSource();
+      source.buffer = pianoSamples[index];
+      source.playbackRate.value = Math.pow(2, pitchShift / 12);
+      source.connect(audioCtx.destination);
+      source.start(0);
+    }
+
+    function adjustPitch(change) {
+      pitchShift += change;
+    }
+
+    textarea.addEventListener('input', () => {
+      playPiano();
+      if (!bpmToggle.checked) triggerShakeGlitch();
+    });
+
+    function triggerShakeGlitch() {
+      document.body.classList.add('shake');
+      setTimeout(() => document.body.classList.remove('shake'), 300);
+
+      const glitchElem = document.createElement('div');
+      glitchElem.className = 'glitch';
+      document.body.appendChild(glitchElem);
+      setTimeout(() => glitchElem.remove(), 300);
+    }
+
+    let bpmInterval;
+    function startBPM() {
+      clearInterval(bpmInterval);
+      const bpm = parseInt(bpmInput.value);
+      const interval = 60000 / bpm;
+      bpmInterval = setInterval(() => {
+        if (bpmToggle.checked) triggerShakeGlitch();
+      }, interval);
+    }
+
+    bpmToggle.addEventListener('change', () => {
+      if (bpmToggle.checked) startBPM();
+      else clearInterval(bpmInterval);
+    });
+
+    bpmInput.addEventListener('input', () => {
+      if (bpmToggle.checked) startBPM();
+    });
+
+    loadSamples();
+    startBPM();
+  </script>
+</body>
+</html>
