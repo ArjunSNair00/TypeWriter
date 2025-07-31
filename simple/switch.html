@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mode Switcher</title>
+  <style>
+    .mode-box {
+      padding: 1rem;
+      border: 2px solid white;
+      margin-top: 1rem;
+      font-family: monospace;
+      color: white;
+      background-color: #222;
+    }
+    body { background: black; color: white; text-align: center; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <button id="switchBtn">Switch Mode</button>
+
+  <div id="modeDisplay" class="mode-box">
+    Current Mode: <strong>Mode A</strong>
+  </div>
+
+  <script>
+    let currentMode = "A";
+
+    const switchBtn = document.getElementById("switchBtn");
+    const modeDisplay = document.getElementById("modeDisplay");
+
+    switchBtn.addEventListener("click", () => {
+      if (currentMode === "A") {
+        currentMode = "B";
+        modeDisplay.innerHTML = "Current Mode: <strong>Mode B</strong>";
+        document.body.style.backgroundColor = "#003";
+      } else {
+        currentMode = "A";
+        modeDisplay.innerHTML = "Current Mode: <strong>Mode A</strong>";
+        document.body.style.backgroundColor = "black";
+      }
+    });
+  </script>
+</body>
+</html>
