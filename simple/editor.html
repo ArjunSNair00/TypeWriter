@@ -1,5 +1,3 @@
-Explain this:
-
 <!DOCTYPE html>  <html lang="en">  
 <head>  
   <meta charset="UTF-8" />  
@@ -66,14 +64,15 @@ button {
   <button onclick="alert('Clicked!')">Click Me</button>  
 </body>  
 </html>  
-  </textarea>    <!-- Preview container -->    <div id="previewContainer">  
+  </textarea>    <!-- Preview container -->    
+  <div id="previewContainer">  
     <iframe id="preview"></iframe>  
   </div>    <script>  
     const editor = document.getElementById("editor");  
     const preview = document.getElementById("preview");  
     const previewContainer = document.getElementById("previewContainer");  
     const toggleButton = document.querySelector("#controls button");  
-  
+    
     function updatePreview() {  
       const content = editor.value;  
       const doc = preview.contentDocument || preview.contentWindow.document;  
