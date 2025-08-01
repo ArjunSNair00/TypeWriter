@@ -1,63 +1,137 @@
-<script>
-const vol = document.getElementById('vol');
-const toggle = document.getElementById('adsrToggle');
-const ctx = new AudioContext();
-const gain = ctx.createGain();
-gain.connect(ctx.destination);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ADSR Piano on Key Press</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+    }
+    label {
+      display: block;
+      margin: 0.5rem 0 0.2rem;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    .slider-container {
+      width: 300px;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>ADSR Piano (Plays on Key Press)</h1>
 
-// ADSR (in seconds, sustain as 0-1)
-const env = { a: 0.1, d: 0.2, s: 0.7, r: 0.5 };
+  <div class="slider-container">
+    <label>Volume</label>
+    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.5" />
+  </div>
 
-// Track current note to stop it when a new one plays
-let currentSrc = null;
+  <div class="slider-container">
+    <label>Attack (s)</label>
+    <input id="attack" type="range" min="0" max="2" step="0.01" value="0.1" />
+    
+    <label>Decay (s)</label>
+    <input id="decay" type="range" min="0" max="2" step="0.01" value="0.2" />
+    
+    <label>Sustain (0–1)</label>
+    <input id="sustain" type="range" min="0" max="1" step="0.01" value="0.7" />
+    
+    <label>Release (s)</label>
+    <input id="release" type="range" min="0" max="2" step="0.01" value="0.5" />
+  </div>
 
-vol.addEventListener('input', () => {
-gain.gain.value = vol.value; // Update master gain
-});
+  <label>
+    <input id="adsrToggle" type="checkbox" checked />
+    Use ADSR Envelope
+  </label>
 
-function play() {
-if (!pianoSamples.length) return;
+  <p>Press any key to play a note.</p>
 
-// Stop current note if playing
-if (currentSrc) {
-currentSrc.stop(0);
-currentSrc = null;
-}
+  <script>
+    const vol = document.getElementById('vol');
+    const toggle = document.getElementById('adsrToggle');
+    const attackSlider = document.getElementById('attack');
+    const decaySlider = document.getElementById('decay');
+    const sustainSlider = document.getElementById('sustain');
+    const releaseSlider = document.getElementById('release');
 
-const i = Math.floor(Math.random() * pianoSamples.length);
-const src = ctx.createBufferSource();
-src.buffer = pianoSamples[i];
-src.playbackRate.value = 2 ** (pitchShift / 12);
-src.connect(gain);
-currentSrc = src;
+    const ctx = new AudioContext();
+    const masterGain = ctx.createGain();
+    masterGain.connect(ctx.destination);
+    masterGain.gain.value = vol.value;
 
-const t = ctx.currentTime;
-const v = vol.value;
+    vol.addEventListener('input', () => {
+      masterGain.gain.value = vol.value;
+    });
 
-if (toggle.checked) {
-// ADSR envelope
-gain.gain.cancelScheduledValues(t);
-gain.gain.setValueAtTime(0, t);
-gain.gain.linearRampToValueAtTime(v, t + env.a);
-gain.gain.linearRampToValueAtTime(v * env.s, t + env.a + env.d);
+    let pianoSamples = [];
+    let pitchShift = 0; // optional pitch shift in semitones
 
-src.start(t);
-src.stop(t + env.a + env.d + 2); // Fixed note length
+    // Load a sample (you can replace this with multiple notes)
+    fetch("piano_C4.wav")
+      .then(res => res.arrayBuffer())
+      .then(buf => ctx.decodeAudioData(buf))
+      .then(audio => {
+        pianoSamples.push(audio);
+      });
 
-src.onended = () => {
-gain.gain.cancelScheduledValues(ctx.currentTime);
-gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
-gain.gain.linearRampToValueAtTime(0, ctx.currentTime + env.r);
-if (currentSrc === src) currentSrc = null;
-};
-} else {
-// Full sound, no ADSR
-gain.gain.cancelScheduledValues(t);
-gain.gain.setValueAtTime(v, t); // Constant volume
-src.start(t);
-src.onended = () => {
-if (currentSrc === src) currentSrc = null;
-};
-}
-}
-</script>
+    // Listen for any key press
+    document.addEventListener('keydown', (e) => {
+      if (ctx.state === 'suspended') {
+        ctx.resume(); // Resume audio context if browser paused it
+      }
+      play();
+    });
+
+    function play() {
+      if (!pianoSamples.length) return;
+
+      const i = Math.floor(Math.random() * pianoSamples.length);
+      const src = ctx.createBufferSource();
+      src.buffer = pianoSamples[i];
+      src.playbackRate.value = 2 ** (pitchShift / 12);
+
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = 0;
+      src.connect(gainNode);
+      gainNode.connect(masterGain);
+
+      const now = ctx.currentTime;
+      const v = parseFloat(vol.value);
+
+      const env = {
+        a: parseFloat(attackSlider.value),
+        d: parseFloat(decaySlider.value),
+        s: parseFloat(sustainSlider.value),
+        r: parseFloat(releaseSlider.value)
+      };
+
+      if (toggle.checked) {
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(v, now + env.a);
+        gainNode.gain.linearRampToValueAtTime(v * env.s, now + env.a + env.d);
+
+        src.start(now);
+        const noteDuration = 2;
+        const stopTime = now + env.a + env.d + noteDuration;
+        src.stop(stopTime);
+
+        src.onended = () => {
+          const t = ctx.currentTime;
+          gainNode.gain.cancelScheduledValues(t);
+          gainNode.gain.setValueAtTime(gainNode.gain.value, t);
+          gainNode.gain.linearRampToValueAtTime(0, t + env.r);
+        };
+      } else {
+        gainNode.gain.setValueAtTime(v, now);
+        src.start(now);
+        src.stop(now + 3);
+      }
+    }
+  </script>
+</body>
+</html>
