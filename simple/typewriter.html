@@ -2,78 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>3D Typewriter with Symbols</title>
+  <title>Realistic Vintage Typewriter</title>
   <style>
     body {
-      font-family: monospace;
-      background: #e0e0e0;
+      background: radial-gradient(#444, #111);
+      font-family: 'Courier New', Courier, monospace;
+      color: #fff;
       padding: 2rem;
       text-align: center;
-      perspective: 1000px;
+      perspective: 1200px;
     }
 
     h1 {
+      color: #f0e6d2;
       margin-bottom: 2rem;
+      text-shadow: 0 0 3px #000;
     }
 
     .typewriter {
-      display: inline-block;
       background: #222;
       padding: 2rem;
+      border-radius: 12px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 20px 60px rgba(0,0,0,0.6);
+      display: inline-block;
+      transform: rotateX(15deg);
+      transform-style: preserve-3d;
+      position: relative;
+    }
+
+    .roller {
+      width: 640px;
+      height: 20px;
+      background: #000;
       border-radius: 10px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-      transform: rotateX(20deg);
-      transform-style: preserve-3d;
-      color: white;
-    }
-
-    .keys {
-      display: grid;
-      grid-template-columns: repeat(14, 42px);
-      gap: 6px;
-      justify-content: center;
-      margin-bottom: 2rem;
-
-      /* Add per-key 3D perspective */
-      perspective: 800px;
-      transform-style: preserve-3d;
-      transform: rotateX(-15deg);
-    }
-
-    .key {
-      background: #444;
-      border-radius: 6px;
-      padding: 10px;
-      user-select: none;
-      transition: transform 0.1s ease-in-out, background 0.2s;
-      box-shadow: 0 4px 2px rgba(0,0,0,0.3);
-
-      /* Individual key tilt and pop */
-      transform: rotateX(10deg) translateZ(12px);
-    }
-
-    .key.active {
-      background: #fff;
-      color: #000;
-      transform: rotateX(10deg) translateY(2px) translateZ(6px);
-      box-shadow: inset 0 0 3px rgba(0,0,0,0.4);
+      margin: 0 auto 10px;
+      box-shadow: inset 0 0 10px #333, 0 0 10px #000;
     }
 
     .paper {
-      background: white;
-      color: black;
+      background: #fafaf0;
+      color: #000;
       padding: 1rem;
       width: 600px;
       height: 200px;
-      margin: 0 auto;
+      margin: 0 auto 1rem;
       text-align: left;
-      border: 1px solid #ccc;
+      font-size: 18px;
       white-space: pre-wrap;
-      font-size: 16px;
-      overflow: auto;
+      border: 1px solid #ccc;
+      box-shadow: inset 0 0 5px #999;
       position: relative;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       transform: translateZ(20px);
+      overflow-y: auto;
     }
 
     .cursor {
@@ -89,45 +69,174 @@
         background: transparent;
       }
     }
+
+    .keys {
+      display: grid;
+      grid-template-columns: repeat(14, 48px);
+      gap: 10px;
+      justify-content: center;
+      perspective: 800px;
+      transform-style: preserve-3d;
+      transform: rotateX(-10deg);
+    }
+
+    .key {
+      background: #2a2a2a;
+      border: 2px solid #555;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      color: #ddd;
+      box-shadow: 0 4px 2px rgba(0,0,0,0.4);
+      user-select: none;
+      transition: all 0.1s ease-in-out;
+      transform: rotateX(10deg) translateZ(12px);
+      background-image: radial-gradient(#333, #111);
+    }
+
+    .key.active {
+      background: #ccc;
+      color: #111;
+      transform: rotateX(10deg) translateY(2px) translateZ(6px);
+      box-shadow: inset 0 0 3px rgba(0,0,0,0.4);
+    }
+
+    .space-bar {
+      grid-column: span 5;
+      background: #333;
+      height: 30px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    .return-lever {
+      position: absolute;
+      right: -40px;
+      top: 30px;
+      background: #666;
+      width: 60px;
+      height: 8px;
+      transform: rotate(40deg);
+      border-radius: 4px;
+      box-shadow: 0 0 5px #000;
+    }
   </style>
 </head>
 <body>
-  <h1>3D Typewriter with Symbols</h1>
+  <h1>Vintage Typewriter</h1>
 
   <div class="typewriter">
+    <div class="roller"></div>
+    <div class="return-lever"></div>
+
     <div class="paper" id="paper">
       <span id="typedText"></span><span class="cursor" id="cursor"></span>
     </div>
-    <div class="keys" id="keys"></div>
+
+    <div class="keys" id="keys">
+      <!-- keys added dynamically -->
+    </div>
+
+    <div class="keys">
+      <div class="space-bar key" id="key_space">Space</div>
+    </div>
   </div>
 
+  <audio id="clickSound" src="click.wav" preload="auto"></audio>
+  <audio id="bellSound" src="bell.wav" preload="auto"></audio>
+
   <script>
-    const allKeys =
-      "1234567890-=[]\\;',./`" +
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-      "!@#$%^&*()_+{}|:\"<>?~";
+    const unshifted = "1234567890-=[]\\;',./`abcdefghijklmnopqrstuvwxyz ";
+    const shifted = "!@#$%^&*()_+{}|:\"<>~ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+
+    const maxCharsPerLine = 60;
 
     const keysContainer = document.getElementById("keys");
     const typedText = document.getElementById("typedText");
-
+    const clickSound = document.getElementById("clickSound");
+    const bellSound = document.getElementById("bellSound");
     const added = new Set();
 
+    let capsLock = false;
+
+    const allKeys = unshifted + shifted;
     for (let char of allKeys) {
       if (added.has(char)) continue;
       added.add(char);
 
       const div = document.createElement("div");
       div.className = "key";
-      div.innerText = char;
-      div.id = "key_" + char.replace(/[^a-zA-Z0-9]/g, (c) => c.charCodeAt(0));
+      div.innerText = char === ' ' ? '␣' : char;
+      div.id = "key_" + char.replace(/[^a-zA-Z0-9]/g, c => c.charCodeAt(0));
       keysContainer.appendChild(div);
+    }
+
+    function getCurrentLineLength(text) {
+      const lines = text.split('\n');
+      return lines[lines.length - 1].length;
     }
 
     document.addEventListener("keydown", (e) => {
       const key = e.key;
-      let id = "key_" + key;
+      const isShift = e.shiftKey;
 
-      if (/[^a-zA-Z0-9]/.test(key)) {
+      if (key === "CapsLock") {
+        capsLock = !capsLock;
+        return;
+      }
+
+      let outputChar = "";
+
+      if (key.length === 1) {
+        if (/[a-zA-Z]/.test(key)) {
+          outputChar = capsLock ^ isShift ? key.toUpperCase() : key.toLowerCase();
+        } else {
+          const index = unshifted.indexOf(key);
+          outputChar = index >= 0 && isShift ? shifted[index] : key;
+        }
+      } else if (key === "Enter") {
+        outputChar = "\n";
+      } else if (key === "Backspace") {
+        typedText.innerText = typedText.innerText.slice(0, -1);
+      }
+
+      // Play click
+      if (outputChar || key === "Backspace") {
+        clickSound.currentTime = 0;
+        clickSound.play();
+      }
+
+      // Bell sound if approaching right edge
+      const len = getCurrentLineLength(typedText.innerText);
+      if (len === maxCharsPerLine - 5) {
+        bellSound.currentTime = 0;
+        bellSound.play();
+      }
+
+      if (outputChar) {
+        let current = typedText.innerText;
+        let currentLineLength = getCurrentLineLength(current);
+
+        if (currentLineLength >= maxCharsPerLine && outputChar !== '\n') {
+          typedText.innerText += '\n';
+        }
+
+        typedText.innerText += outputChar;
+
+        // Auto-scroll paper
+        const paper = document.getElementById("paper");
+        paper.scrollTop = paper.scrollHeight;
+      }
+
+      // Visual feedback
+      let id = "key_" + key;
+      if (key === " ") id = "key_space";
+      if (/[^a-zA-Z0-9]/.test(key) && key !== " ") {
         id = "key_" + key.charCodeAt(0);
       }
 
@@ -135,12 +244,6 @@
       if (keyEl) {
         keyEl.classList.add("active");
         setTimeout(() => keyEl.classList.remove("active"), 100);
-      }
-
-      if (key.length === 1) {
-        typedText.innerText += key;
-      } else if (key === "Backspace") {
-        typedText.innerText = typedText.innerText.slice(0, -1);
       }
     });
   </script>
