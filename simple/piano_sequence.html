@@ -1,0 +1,17 @@
+<script>
+function playNextPianoSample() {
+if (pianoSamples.length === 0) return;
+
+const source = audioCtx.createBufferSource();
+source.buffer = pianoSamples[currentSampleIndex];
+source.connect(audioCtx.destination);
+source.start(0);
+
+currentSampleIndex++;
+
+// Loop back to beginning if at the end
+if (currentSampleIndex >= pianoSamples.length) {
+currentSampleIndex = 0;
+}
+}
+</script>

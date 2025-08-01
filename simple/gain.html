@@ -1,0 +1,28 @@
+<label>
+  Volume:
+  <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" />
+</label>
+
+<script>
+  const volumeSlider = document.getElementById('volumeSlider');
+
+// Create GainNode for amplitude control
+const gainNode = audioCtx.createGain();
+gainNode.gain.value = parseFloat(volumeSlider.value); // Initial volume
+gainNode.connect(audioCtx.destination);
+
+// Update volume when slider moves
+volumeSlider.addEventListener('input', () => {
+  gainNode.gain.value = parseFloat(volumeSlider.value);
+});
+
+function playPiano() {
+  if (pianoSamples.length === 0) return;
+  const index = Math.floor(Math.random() * pianoSamples.length);
+  const source = audioCtx.createBufferSource();
+  source.buffer = pianoSamples[index];
+  source.playbackRate.value = Math.pow(2, pitchShift / 12);
+  source.connect(gainNode); // Connect to gainNode instead of destination
+  source.start(0);
+}
+</script>
