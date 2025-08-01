@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>All-in-One HTML Editor with Preview Toggle</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #controls {
+      padding: 10px;
+      background-color: #333;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #editor {
+      flex: 1;
+      width: 100%;
+      font-size: 14px;
+      padding: 10px;
+      box-sizing: border-box;
+      border: none;
+      resize: none;
+      font-family: monospace;
+    }
+
+    #preview {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+
+    #previewContainer {
+      flex: 1;
+      display: block;
+    }
+
+    button {
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Controls -->
+  <div id="controls">
+    <span>All-in-One HTML Editor</span>
+    <button onclick="togglePreview()">Hide Preview</button>
+  </div>
+
+  <!-- Editor -->
+  <textarea id="editor" placeholder="Write full HTML here...">
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background: #111; color: white; text-align: center; padding: 50px; }
+    button { padding: 10px 20px; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h1>Hello, Editor!</h1>
+  <button onclick="alert('Clicked!')">Click Me</button>
+</body>
+</html>
+  </textarea>
+
+  <!-- Preview container -->
+  <div id="previewContainer">
+    <iframe id="preview"></iframe>
+  </div>
+
+  <script>
+    const editor = document.getElementById("editor");
+    const preview = document.getElementById("preview");
+    const previewContainer = document.getElementById("previewContainer");
+    const toggleButton = document.querySelector("#controls button");
+
+    function updatePreview() {
+      const content = editor.value;
+      const doc = preview.contentDocument || preview.contentWindow.document;
+      doc.open();
+      doc.write(content);
+      doc.close();
+    }
+
+    function togglePreview() {
+      if (previewContainer.style.display === "none") {
+        previewContainer.style.display = "block";
+        toggleButton.textContent = "Hide Preview";
+      } else {
+        previewContainer.style.display = "none";
+        toggleButton.textContent = "Show Preview";
+      }
+    }
+
+    editor.addEventListener("input", updatePreview);
+    window.addEventListener("load", updatePreview);
+  </script>
+
+</body>
+</html>
