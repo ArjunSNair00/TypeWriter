@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Typewriter with Symbols</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #e0e0e0;
+      padding: 2rem;
+      text-align: center;
+      perspective: 1000px;
+    }
+
+    h1 {
+      margin-bottom: 2rem;
+    }
+
+    .typewriter {
+      display: inline-block;
+      background: #222;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      transform: rotateX(20deg);
+      transform-style: preserve-3d;
+      color: white;
+    }
+
+    .keys {
+      display: grid;
+      grid-template-columns: repeat(14, 42px);
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 2rem;
+
+      /* Add per-key 3D perspective */
+      perspective: 800px;
+      transform-style: preserve-3d;
+      transform: rotateX(-15deg);
+    }
+
+    .key {
+      background: #444;
+      border-radius: 6px;
+      padding: 10px;
+      user-select: none;
+      transition: transform 0.1s ease-in-out, background 0.2s;
+      box-shadow: 0 4px 2px rgba(0,0,0,0.3);
+
+      /* Individual key tilt and pop */
+      transform: rotateX(10deg) translateZ(12px);
+    }
+
+    .key.active {
+      background: #fff;
+      color: #000;
+      transform: rotateX(10deg) translateY(2px) translateZ(6px);
+      box-shadow: inset 0 0 3px rgba(0,0,0,0.4);
+    }
+
+    .paper {
+      background: white;
+      color: black;
+      padding: 1rem;
+      width: 600px;
+      height: 200px;
+      margin: 0 auto;
+      text-align: left;
+      border: 1px solid #ccc;
+      white-space: pre-wrap;
+      font-size: 16px;
+      overflow: auto;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      transform: translateZ(20px);
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 10px;
+      height: 1em;
+      background: black;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      50% {
+        background: transparent;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>3D Typewriter with Symbols</h1>
+
+  <div class="typewriter">
+    <div class="paper" id="paper">
+      <span id="typedText"></span><span class="cursor" id="cursor"></span>
+    </div>
+    <div class="keys" id="keys"></div>
+  </div>
+
+  <script>
+    const allKeys =
+      "1234567890-=[]\\;',./`" +
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+      "!@#$%^&*()_+{}|:\"<>?~";
+
+    const keysContainer = document.getElementById("keys");
+    const typedText = document.getElementById("typedText");
+
+    const added = new Set();
+
+    for (let char of allKeys) {
+      if (added.has(char)) continue;
+      added.add(char);
+
+      const div = document.createElement("div");
+      div.className = "key";
+      div.innerText = char;
+      div.id = "key_" + char.replace(/[^a-zA-Z0-9]/g, (c) => c.charCodeAt(0));
+      keysContainer.appendChild(div);
+    }
+
+    document.addEventListener("keydown", (e) => {
+      const key = e.key;
+      let id = "key_" + key;
+
+      if (/[^a-zA-Z0-9]/.test(key)) {
+        id = "key_" + key.charCodeAt(0);
+      }
+
+      const keyEl = document.getElementById(id);
+      if (keyEl) {
+        keyEl.classList.add("active");
+        setTimeout(() => keyEl.classList.remove("active"), 100);
+      }
+
+      if (key.length === 1) {
+        typedText.innerText += key;
+      } else if (key === "Backspace") {
+        typedText.innerText = typedText.innerText.slice(0, -1);
+      }
+    });
+  </script>
+</body>
+</html>
