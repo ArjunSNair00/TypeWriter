@@ -1,0 +1,12 @@
+<div id="load-here"></div>
+
+<script>
+  function loadHTML(el, file) {
+    fetch(file)
+      .then(res => res.text())
+      .then(html => document.getElementById(el).innerHTML = html)
+      .catch(err => console.error('Error loading HTML:', err));
+  }
+  
+  loadHTML('load-here', 'header.html');
+</script>
