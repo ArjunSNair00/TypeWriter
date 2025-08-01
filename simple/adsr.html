@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ADSR Piano on Key Press</title>
+  <title>Sound Presets with ADSR</title>
   <style>
     body {
       font-family: sans-serif;
@@ -12,7 +12,7 @@
       display: block;
       margin: 0.5rem 0 0.2rem;
     }
-    input[type="range"] {
+    input[type="range"], select {
       width: 100%;
     }
     .slider-container {
@@ -22,7 +22,14 @@
   </style>
 </head>
 <body>
-  <h1>ADSR Piano (Plays on Key Press)</h1>
+  <h1>Sound Player with Presets</h1>
+
+  <label>Choose Preset:</label>
+  <select id="preset">
+    <option value="piano">Piano</option>
+    <option value="meme">Meme</option>
+    <option value="mechanical">Mechanical</option>
+  </select>
 
   <div class="slider-container">
     <label>Volume</label>
@@ -32,23 +39,23 @@
   <div class="slider-container">
     <label>Attack (s)</label>
     <input id="attack" type="range" min="0" max="2" step="0.01" value="0.1" />
-    
+
     <label>Decay (s)</label>
     <input id="decay" type="range" min="0" max="2" step="0.01" value="0.2" />
-    
+
     <label>Sustain (0–1)</label>
     <input id="sustain" type="range" min="0" max="1" step="0.01" value="0.7" />
-    
+
     <label>Release (s)</label>
     <input id="release" type="range" min="0" max="2" step="0.01" value="0.5" />
   </div>
 
   <label>
     <input id="adsrToggle" type="checkbox" checked />
-    Use ADSR Envelope
+    Use ADSR Envelope (only works for Piano)
   </label>
 
-  <p>Press any key to play a note.</p>
+  <p>Press any key to play a sound.</p>
 
   <script>
     const vol = document.getElementById('vol');
@@ -57,6 +64,7 @@
     const decaySlider = document.getElementById('decay');
     const sustainSlider = document.getElementById('sustain');
     const releaseSlider = document.getElementById('release');
+    const presetSelector = document.getElementById('preset');
 
     const ctx = new AudioContext();
     const masterGain = ctx.createGain();
@@ -67,32 +75,41 @@
       masterGain.gain.value = vol.value;
     });
 
-    let pianoSamples = [];
-    let pitchShift = 0; // optional pitch shift in semitones
+    let samples = {
+      piano: [],
+      meme: [],
+      mechanical: []
+    };
 
-    // Load a sample (you can replace this with multiple notes)
-    fetch("piano_C4.wav")
-      .then(res => res.arrayBuffer())
-      .then(buf => ctx.decodeAudioData(buf))
-      .then(audio => {
-        pianoSamples.push(audio);
-      });
+    const presetNames = Object.keys(samples);
 
-    // Listen for any key press
-    document.addEventListener('keydown', (e) => {
-      if (ctx.state === 'suspended') {
-        ctx.resume(); // Resume audio context if browser paused it
+    // Load all 3 presets
+    presetNames.forEach(name => {
+      for (let i = 1; i <= 20; i++) {
+        fetch(`${name} (${i}).wav`)
+          .then(res => res.arrayBuffer())
+          .then(buf => ctx.decodeAudioData(buf))
+          .then(audio => {
+            samples[name][i - 1] = audio;
+          })
+          .catch(err => console.error(`Error loading ${name} (${i}).wav`, err));
       }
+    });
+
+    document.addEventListener('keydown', () => {
+      if (ctx.state === 'suspended') ctx.resume();
       play();
     });
 
     function play() {
-      if (!pianoSamples.length) return;
+      const preset = presetSelector.value;
+      const bank = samples[preset].filter(Boolean);
+      if (bank.length === 0) return;
 
-      const i = Math.floor(Math.random() * pianoSamples.length);
+      const i = Math.floor(Math.random() * bank.length);
       const src = ctx.createBufferSource();
-      src.buffer = pianoSamples[i];
-      src.playbackRate.value = 2 ** (pitchShift / 12);
+      src.buffer = bank[i];
+      src.playbackRate.value = 1;
 
       const gainNode = ctx.createGain();
       gainNode.gain.value = 0;
@@ -109,7 +126,9 @@
         r: parseFloat(releaseSlider.value)
       };
 
-      if (toggle.checked) {
+      const useADSR = preset === 'piano' && toggle.checked;
+
+      if (useADSR) {
         gainNode.gain.cancelScheduledValues(now);
         gainNode.gain.setValueAtTime(0, now);
         gainNode.gain.linearRampToValueAtTime(v, now + env.a);
@@ -127,9 +146,10 @@
           gainNode.gain.linearRampToValueAtTime(0, t + env.r);
         };
       } else {
+        // Other presets: no ADSR
         gainNode.gain.setValueAtTime(v, now);
         src.start(now);
-        src.stop(now + 3);
+        src.stop(now + 2);
       }
     }
   </script>
