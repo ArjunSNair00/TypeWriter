@@ -39,21 +39,27 @@
       box-shadow: inset 0 0 10px #333, 0 0 10px #000;
     }
 
-    .paper {
-      background: #fafaf0;
-      color: #000;
-      padding: 1rem;
+    .paper-container {
       width: 600px;
       height: 200px;
       margin: 0 auto 1rem;
-      text-align: left;
+      overflow: hidden;
+      position: relative;
+      background: #fafaf0;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    }
+
+    .paper {
+      background: transparent;
+      color: #000;
+      padding: 1rem;
+      width: 100%;
       font-size: 18px;
       white-space: pre-wrap;
-      border: 1px solid #ccc;
-      box-shadow: inset 0 0 5px #999;
-      position: relative;
-      transform: translateZ(20px);
-      overflow-y: auto;
+      position: absolute;
+      left: 0;
+      top: 0;
+      transition: transform 0.4s ease;
     }
 
     .cursor {
@@ -106,24 +112,28 @@
       box-shadow: inset 0 0 3px rgba(0,0,0,0.4);
     }
 
-    .space-bar {
-      grid-column: span 5;
-      background: #333;
-      height: 30px;
-      border-radius: 8px;
-      margin-top: 10px;
-    }
-
     .return-lever {
       position: absolute;
       right: -40px;
-      top: 30px;
+      top: 60px;
+      width: 30px;
+      height: 80px;
       background: #666;
-      width: 60px;
-      height: 8px;
-      transform: rotate(40deg);
-      border-radius: 4px;
-      box-shadow: 0 0 5px #000;
+      border-radius: 8px;
+      transform: rotateZ(-10deg);
+      box-shadow: inset 0 0 3px #000;
+      cursor: pointer;
+    }
+
+    .space-bar {
+      margin-top: 20px;
+      background: #333;
+      width: 200px;
+      height: 30px;
+      border-radius: 8px;
+      margin-left: auto;
+      margin-right: auto;
+      box-shadow: inset 0 -3px 3px rgba(0,0,0,0.3);
     }
   </style>
 </head>
@@ -132,37 +142,38 @@
 
   <div class="typewriter">
     <div class="roller"></div>
-    <div class="return-lever"></div>
 
-    <div class="paper" id="paper">
-      <span id="typedText"></span><span class="cursor" id="cursor"></span>
+    <div class="paper-container">
+      <div class="paper" id="paper">
+        <span id="typedText"></span><span class="cursor" id="cursor"></span>
+      </div>
     </div>
 
-    <div class="keys" id="keys">
-      <!-- keys added dynamically -->
-    </div>
+    <div class="keys" id="keys"></div>
 
-    <div class="keys">
-      <div class="space-bar key" id="key_space">Space</div>
-    </div>
+    <div class="space-bar"></div>
+    <div class="return-lever" onclick="manualReturn()"></div>
   </div>
 
-  <audio id="clickSound" src="click.wav" preload="auto"></audio>
-  <audio id="bellSound" src="bell.wav" preload="auto"></audio>
+  <audio id="clickSound" src="https://freesound.org/data/previews/66/66717_931655-lq.mp3" preload="auto"></audio>
+  <audio id="bellSound" src="https://freesound.org/data/previews/103/103041_861714-lq.mp3" preload="auto"></audio>
 
   <script>
     const unshifted = "1234567890-=[]\\;',./`abcdefghijklmnopqrstuvwxyz ";
-    const shifted = "!@#$%^&*()_+{}|:\"<>~ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
-
-    const maxCharsPerLine = 60;
+    const shifted   = "!@#$%^&*()_+{}|:\"<>~ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+    const maxCharsPerLine = 50;
+    const lineHeight = 24;
 
     const keysContainer = document.getElementById("keys");
     const typedText = document.getElementById("typedText");
     const clickSound = document.getElementById("clickSound");
     const bellSound = document.getElementById("bellSound");
+    const paper = document.getElementById("paper");
     const added = new Set();
 
     let capsLock = false;
+    let lineCount = 0;
+    let currentLineLength = 0;
 
     const allKeys = unshifted + shifted;
     for (let char of allKeys) {
@@ -171,14 +182,23 @@
 
       const div = document.createElement("div");
       div.className = "key";
-      div.innerText = char === ' ' ? '␣' : char;
+      div.innerText = char;
       div.id = "key_" + char.replace(/[^a-zA-Z0-9]/g, c => c.charCodeAt(0));
       keysContainer.appendChild(div);
     }
 
-    function getCurrentLineLength(text) {
-      const lines = text.split('\n');
-      return lines[lines.length - 1].length;
+    function scrollPaperUp() {
+      lineCount++;
+      const offset = -lineCount * lineHeight;
+      paper.style.transform = `translateY(${offset}px)`;
+    }
+
+    function manualReturn() {
+      typedText.innerText += '\n';
+      currentLineLength = 0;
+      bellSound.currentTime = 0;
+      bellSound.play();
+      scrollPaperUp();
     }
 
     document.addEventListener("keydown", (e) => {
@@ -200,43 +220,33 @@
           outputChar = index >= 0 && isShift ? shifted[index] : key;
         }
       } else if (key === "Enter") {
-        outputChar = "\n";
+        manualReturn();
+        return;
       } else if (key === "Backspace") {
         typedText.innerText = typedText.innerText.slice(0, -1);
+        currentLineLength = Math.max(0, currentLineLength - 1);
+        return;
       }
 
-      // Play click
-      if (outputChar || key === "Backspace") {
+      // Auto wrap line
+      if (currentLineLength >= maxCharsPerLine && outputChar !== '\n') {
+        typedText.innerText += '\n';
+        scrollPaperUp();
+        bellSound.currentTime = 0;
+        bellSound.play();
+        currentLineLength = 0;
+      }
+
+      if (outputChar) {
+        typedText.innerText += outputChar;
+        currentLineLength++;
         clickSound.currentTime = 0;
         clickSound.play();
       }
 
-      // Bell sound if approaching right edge
-      const len = getCurrentLineLength(typedText.innerText);
-      if (len === maxCharsPerLine - 5) {
-        bellSound.currentTime = 0;
-        bellSound.play();
-      }
-
-      if (outputChar) {
-        let current = typedText.innerText;
-        let currentLineLength = getCurrentLineLength(current);
-
-        if (currentLineLength >= maxCharsPerLine && outputChar !== '\n') {
-          typedText.innerText += '\n';
-        }
-
-        typedText.innerText += outputChar;
-
-        // Auto-scroll paper
-        const paper = document.getElementById("paper");
-        paper.scrollTop = paper.scrollHeight;
-      }
-
-      // Visual feedback
+      // Key animation
       let id = "key_" + key;
-      if (key === " ") id = "key_space";
-      if (/[^a-zA-Z0-9]/.test(key) && key !== " ") {
+      if (/[^a-zA-Z0-9]/.test(key)) {
         id = "key_" + key.charCodeAt(0);
       }
 
